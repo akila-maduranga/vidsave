@@ -2,12 +2,6 @@
     # Reverse proxy to Flask app
     reverse_proxy app:8080
     
-    # Enable automatic HTTPS with Let's Encrypt (HTTP challenge - works with any DNS provider)
-    tls {
-        # HTTP challenge - works with Namecheap and other DNS providers
-        # No API token needed
-    }
-    
     # Logging
     log {
         output file /var/log/caddy/access.log
