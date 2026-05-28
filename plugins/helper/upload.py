@@ -46,6 +46,15 @@ async def download_to_file(download_id: str, url: str, format_id: str = None, mo
         if not filename:
             filename = extract_filename(url)
         
+        # Map quality options to yt-dlp format codes
+        quality_map = {
+            'best': 'bestvideo+bestaudio/best',
+            '1080p': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
+            '720p': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+            '480p': 'bestvideo[height<=480]+bestaudio/best[height<=480]',
+            '360p': 'bestvideo[height<=360]+bestaudio/best[height<=360]'
+        }
+        
         # Ensure .mp4 extension for videos
         if not any(filename.lower().endswith(ext) for ext in ['.mp4', '.webm', '.mkv', '.mp3', '.m4a']):
             filename = filename.rsplit('.', 1)[0] + '.mp4'
@@ -55,10 +64,11 @@ async def download_to_file(download_id: str, url: str, format_id: str = None, mo
         WEB_DOWNLOAD_PROGRESS[download_id]["action"] = "Downloading..."
         WEB_DOWNLOAD_PROGRESS[download_id]["_last_update"] = time.time()
         
-        # Download using aria2 or direct HTTP
+        # Download using yt-dlp for all cases
+        import yt_dlp
+        
         if mode == "audio":
             # Extract audio only
-            import yt_dlp
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'outtmpl': output_path,
@@ -70,53 +80,57 @@ async def download_to_file(download_id: str, url: str, format_id: str = None, mo
                     'preferredquality': '192',
                 }]
             }
-            if format_id and format_id != "direct":
-                ydl_opts['format'] = format_id
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-            # yt-dlp adds extension, find the actual file
-            for ext in ['.mp3', '.m4a', '.webm']:
-                if os.path.exists(output_path.rsplit('.', 1)[0] + ext):
-                    output_path = output_path.rsplit('.', 1)[0] + ext
-                    break
         else:
-            # Regular download
-            if format_id and format_id != "direct":
-                # Use yt-dlp with format
-                import yt_dlp
-                ydl_opts = {
-                    'format': format_id.replace('best_', ''),
-                    'outtmpl': output_path,
-                    'quiet': True,
-                    'no_warnings': True
-                }
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([url])
-            else:
-                # Direct HTTP download
-                async with await get_http_session() as session:
-                    async with session.get(url) as response:
-                        if response.status == 200:
-                            total_size = int(response.headers.get('content-length', 0))
-                            downloaded = 0
-                            
-                            async with aiofiles.open(output_path, 'wb') as f:
-                                async for chunk in response.content.iter_chunked(1024 * 1024):
-                                    await f.write(chunk)
-                                    downloaded += len(chunk)
-                                    
-                                    if total_size > 0:
-                                        percentage = (downloaded / total_size) * 100
-                                        WEB_DOWNLOAD_PROGRESS[download_id]["percentage"] = percentage
-                                        WEB_DOWNLOAD_PROGRESS[download_id]["action"] = "Downloading..."
-                                        WEB_DOWNLOAD_PROGRESS[download_id]["_last_update"] = time.time()
+            # Video download with quality selection
+            ydl_format = quality_map.get(format_id, 'bestvideo+bestaudio/best')
+            ydl_opts = {
+                'format': ydl_format,
+                'outtmpl': output_path,
+                'quiet': True,
+                'no_warnings': True,
+                'merge_output_format': 'mp4',
+                'postprocessors': [{
+                    'key': 'FFmpegVideoConvertor',
+                    'preferedformat': 'mp4',
+                }]
+            }
+        
+        # Add progress hook
+        def progress_hook(d):
+            if d['status'] == 'downloading':
+                total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+                downloaded = d.get('downloaded_bytes', 0)
+                if total > 0:
+                    percentage = (downloaded / total) * 100
+                    WEB_DOWNLOAD_PROGRESS[download_id]["percentage"] = percentage
+                    WEB_DOWNLOAD_PROGRESS[download_id]["action"] = d.get('filename', 'Downloading...')
+                    WEB_DOWNLOAD_PROGRESS[download_id]["speed"] = f"{d.get('speed', 0) / 1024 / 1024:.2f} MB/s" if d.get('speed') else "-- MB/s"
+                    WEB_DOWNLOAD_PROGRESS[download_id]["_last_update"] = time.time()
+        
+        ydl_opts['progress_hooks'] = [progress_hook]
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        
+        # Find the actual downloaded file (yt-dlp may add extension)
+        for ext in ['.mp4', '.webm', '.mkv', '.mp3', '.m4a']:
+            if os.path.exists(output_path.rsplit('.', 1)[0] + ext):
+                output_path = output_path.rsplit('.', 1)[0] + ext
+                break
+        elif os.path.exists(output_path):
+            pass  # File exists with original path
+        else:
+            # Try to find any file with the download_id prefix
+            import glob
+            matching = glob.glob(os.path.join(Config.DOWNLOAD_LOCATION, f"{download_id}_*"))
+            if matching:
+                output_path = matching[0]
         
         WEB_DOWNLOAD_PROGRESS[download_id]["status"] = "complete"
         WEB_DOWNLOAD_PROGRESS[download_id]["percentage"] = 100
         WEB_DOWNLOAD_PROGRESS[download_id]["action"] = "Complete"
         WEB_DOWNLOAD_PROGRESS[download_id]["filepath"] = output_path
-        WEB_DOWNLOAD_PROGRESS[download_id]["filename"] = filename
+        WEB_DOWNLOAD_PROGRESS[download_id]["filename"] = os.path.basename(output_path)
         WEB_DOWNLOAD_PROGRESS[download_id]["_last_update"] = time.time()
         
         # Track traffic statistics
