@@ -1034,88 +1034,7 @@ async def fetch_ytdlp_formats(url: str) -> dict:
                     Config.LOGGER.warning("YouTube API returned empty formats")
             except Exception as e:
                 Config.LOGGER.warning(f"YouTube API failed: {e}")
-        else:
-            Config.LOGGER.info("YOUTUBE_API_URL not set, using fallback")
-            # If no API configured, attempt external extract directly to avoid the slow local yt-dlp check
-            info = await external_extract_ytdlp(url)
-            if info: return info
-        
-        # Fall back to external extract
-        info = await external_extract_ytdlp(url)
-        if info and info.get("formats"):
-            # Handle Playlists: If info has 'entries', take the first one
-            if "entries" in info and info["entries"]:
-                info = info["entries"][0]
 
-            formats = info.get("formats", [])
-            title = info.get("title", "video")
-
-            best_audio_size = 0
-            for f in formats:
-                if f.get("vcodec") == "none" and f.get("acodec") != "none":
-                    size = f.get("filesize") or f.get("filesize_approx") or 0
-                    if size > best_audio_size:
-                        best_audio_size = size
-
-            available = {}
-            for f in formats:
-                height = f.get("height")
-                if height and f.get("vcodec") != "none":
-                    res = f"{height}p"
-                    available[res] = f
-
-            format_results = []
-            sorted_res = sorted(
-                available.keys(),
-                key=lambda x: int(re.search(r'(\d+)p', x).group(1)) if re.search(r'(\d+)p', x) else 0,
-                reverse=True
-            )
-
-            for res in sorted_res:
-                f = available[res]
-                size = f.get("filesize") or f.get("filesize_approx")
-                has_audio = f.get("acodec") != "none"
-                
-                # Estimate size if missing using bitrate and duration
-                if size is None:
-                    tbr = f.get("tbr")
-                    duration = info.get("duration")
-                    if tbr and duration:
-                        size = int((tbr * 1024 / 8) * duration)
-
-                if not has_audio and size is not None and best_audio_size > 0:
-                    size += best_audio_size
-
-                format_results.append({
-                    "format_id": f["format_id"],
-                    "resolution": res,
-                    "ext": f.get("ext", "mp4"),
-                    "filesize": size,
-                    "has_audio": has_audio,
-                    "bitrate": f.get("tbr") or f.get("vbr") or 0,
-                    "url": f.get("url")
-                })
-
-            if format_results:
-                # Probe for accurate filesizes
-                session = await get_http_session()
-                for f_dict in format_results:
-                    if f_dict.get("filesize") is None and f_dict.get("url"):
-                        try:
-                            async with session.head(
-                                f_dict["url"], allow_redirects=True, 
-                                timeout=aiohttp.ClientTimeout(total=5),
-                                proxy=Config.PROXY
-                            ) as head:
-                                cl = head.headers.get("Content-Length")
-                                if cl and cl.isdigit():
-                                    f_dict["filesize"] = int(cl)
-                        except Exception:
-                            pass
-                    if "url" in f_dict:
-                        del f_dict["url"]
-                
-                return {"formats": format_results, "title": title}
 
     # For other sites: try local yt-dlp first
     loop = asyncio.get_running_loop()
@@ -1131,7 +1050,6 @@ async def fetch_ytdlp_formats(url: str) -> dict:
                 "force_ipv4": True,
                 "nocheckcertificate": True,
                 "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "impersonate": "chrome",
                 "extractor_args": {
                     "youtube": {"player_client": ["web", "creator"]},
                 }
