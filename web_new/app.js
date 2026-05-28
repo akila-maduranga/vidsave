@@ -47,9 +47,8 @@ async function checkUrl() {
     btnText.innerHTML = '<span class="loader"></span> Analyzing...';
 
     try {
-        // Validate URL format
-        const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-        if (!urlPattern.test(url)) {
+        // Simple URL validation - just check if it starts with http/https or has a domain
+        if (!url.match(/^(https?:\/\/)?[\w\.-]+\.[a-z]{2,}/i)) {
             showError('Please enter a valid URL');
             btn.disabled = false;
             btnText.textContent = 'Analyze URL';

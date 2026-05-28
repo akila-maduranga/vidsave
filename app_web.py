@@ -375,6 +375,9 @@ def extract():
         return {"error": str(e)}, 500
 
 if __name__ == "__main__":
+    # Mark app as ready immediately
+    app.is_ready = True
+    
     # Start background pruning task
     def run_prune_task():
         loop = asyncio.new_event_loop()
@@ -386,9 +389,6 @@ if __name__ == "__main__":
     
     prune_thread = threading.Thread(target=run_prune_task, daemon=True)
     prune_thread.start()
-    
-    # Mark app as ready
-    app.is_ready = True
     
     port = int(os.environ.get('PORT', 8080))
     workers = int(os.environ.get('WEB_WORKERS', 4))  # 4 workers on 12GB VPS
