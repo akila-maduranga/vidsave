@@ -24,6 +24,11 @@ PROGRESS_UPDATE_DELAY = 1  # seconds between progress edits
 # Define here to avoid circular import
 WEB_DOWNLOAD_PROGRESS = {}
 
+def extract_filename(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    name = os.path.basename(parsed.path.rstrip("/"))
+    return urllib.parse.unquote(name) if name else "downloaded_file"
+
 
 async def download_to_file(download_id: str, url: str, format_id: str = None, mode: str = "direct", filename: str = None):
     """Download file to disk for web interface (no Telegram upload)."""

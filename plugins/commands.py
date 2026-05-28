@@ -14,7 +14,7 @@ from plugins.helper.upload import (
     download_url, upload_file, humanbytes,
     smart_output_name, is_ytdlp_url, fetch_ytdlp_title,
     fetch_ytdlp_formats, get_best_filename, resolve_url,
-    get_file_category, probe_content_type
+    get_file_category, probe_content_type, extract_filename
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
