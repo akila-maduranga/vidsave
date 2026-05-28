@@ -17,7 +17,6 @@ bot_client = Client(
     plugins=plugins,
     sleep_threshold=300,
     workers=40,              # Increased for high concurrency
-    upload_boost=True,
     max_concurrent_transmissions=20, # Increased for multiple users
 )
 
