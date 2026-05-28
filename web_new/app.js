@@ -1,7 +1,16 @@
-let selectedFormat = null;
+let selectedFormat = 'best';
 let selectedMode = 'direct';
 let downloadId = null;
 let progressInterval = null;
+
+// Fixed quality options
+const QUALITY_OPTIONS = [
+    { id: 'best', label: 'Best Quality' },
+    { id: '1080p', label: '1080p HD' },
+    { id: '720p', label: '720p HD' },
+    { id: '480p', label: '480p SD' },
+    { id: '360p', label: '360p' }
+];
 
 function showError(message) {
     const errorDiv = document.getElementById('error');
@@ -35,48 +44,47 @@ async function checkUrl() {
     const btn = document.getElementById('checkBtn');
     const btnText = document.getElementById('btnText');
     btn.disabled = true;
-    btnText.innerHTML = '<span class="loader"></span> Checking...';
+    btnText.innerHTML = '<span class="loader"></span> Analyzing...';
 
     try {
-        const response = await fetch('/api/formats', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            displayFormats(data.formats || []);
-            document.getElementById('modeSection').classList.remove('hidden');
-            document.getElementById('filenameSection').classList.remove('hidden');
-            document.getElementById('downloadSection').classList.remove('hidden');
-        } else {
-            showError(data.error || 'Failed to fetch formats');
+        // Validate URL format
+        const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+        if (!urlPattern.test(url)) {
+            showError('Please enter a valid URL');
+            btn.disabled = false;
+            btnText.textContent = 'Analyze URL';
+            return;
         }
+
+        // Show quality options directly without API call
+        displayFormats();
+        document.getElementById('modeSection').classList.remove('hidden');
+        document.getElementById('filenameSection').classList.remove('hidden');
+        document.getElementById('downloadSection').classList.remove('hidden');
+        showSuccess('URL validated successfully!');
     } catch (err) {
-        showError('Connection error');
+        showError('Invalid URL format');
     } finally {
         btn.disabled = false;
-        btnText.textContent = 'Check URL';
+        btnText.textContent = 'Analyze URL';
     }
 }
 
-function displayFormats(formats) {
+function displayFormats() {
     const grid = document.getElementById('qualityGrid');
     grid.innerHTML = '';
-    
-    if (formats.length === 0) {
-        grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: rgba(255,255,255,0.6);">No formats available, will use direct download</p>';
-        return;
-    }
 
-    formats.forEach(format => {
+    QUALITY_OPTIONS.forEach((quality, index) => {
         const btn = document.createElement('button');
         btn.className = 'quality-btn';
-        btn.textContent = format.label || format.format_id;
-        btn.onclick = () => selectFormat(format.format_id, btn);
+        btn.textContent = quality.label;
+        btn.onclick = () => selectFormat(quality.id, btn);
         grid.appendChild(btn);
+        
+        // Auto-select the first format
+        if (index === 0) {
+            selectFormat(quality.id, btn);
+        }
     });
 
     document.getElementById('qualitySection').classList.remove('hidden');
@@ -116,7 +124,7 @@ async function startDownload() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 url,
-                format_id: selectedFormat || 'direct',
+                format_id: selectedFormat || 'best',
                 mode: selectedMode,
                 filename: filename || null
             })
@@ -135,17 +143,19 @@ async function startDownload() {
         } else {
             showError(data.error || 'Failed to start download');
             btn.disabled = false;
-            btnText.textContent = 'Start Download';
+            btnText.textContent = 'Download Now';
         }
     } catch (err) {
         showError('Connection error');
         btn.disabled = false;
-        btnText.textContent = 'Start Download';
+        btnText.textContent = 'Download Now';
     }
 }
 
 function startProgressPolling() {
-    progressInterval = setInterval(checkProgress, 1000);
+    // Clear any existing polling first
+    if (progressInterval) clearTimeout(progressInterval);
+    progressInterval = setTimeout(checkProgress, 1000);
 }
 
 async function checkProgress() {
@@ -159,15 +169,27 @@ async function checkProgress() {
             updateProgress(data);
 
             if (data.status === 'complete') {
-                clearInterval(progressInterval);
                 showDownloadLink();
+                return; // Stop polling
             } else if (data.status === 'error') {
-                clearInterval(progressInterval);
-                showError('Download failed: ' + data.action);
+                document.getElementById('progressSection').classList.add('hidden');
+                document.getElementById('downloadSection').classList.remove('hidden');
+                document.getElementById('downloadSection').querySelector('button').disabled = false;
+                document.getElementById('downloadBtnText').textContent = 'Download Now';
+                showError('Download failed: ' + (data.action || 'Unknown error'));
+                return; // Stop polling
             }
+            
+            // Continue polling if not complete/error
+            progressInterval = setTimeout(checkProgress, 1000);
+        } else {
+            // Re-poll even on transient HTTP errors
+            progressInterval = setTimeout(checkProgress, 2000);
         }
     } catch (err) {
         console.error('Progress check failed:', err);
+        // Continue polling despite network errors
+        progressInterval = setTimeout(checkProgress, 3000);
     }
 }
 

@@ -1,4 +1,5 @@
 import motor.motor_asyncio
+from typing import Optional, List
 from plugins.config import Config
 
 _client = None
@@ -13,7 +14,7 @@ def get_db():
     return _db
 
 
-async def add_user(user_id: int, username: str | None = None) -> None:
+async def add_user(user_id: int, username: Optional[str] = None) -> None:
     db = get_db()
     if db is None:
         return
@@ -24,7 +25,7 @@ async def add_user(user_id: int, username: str | None = None) -> None:
     )
 
 
-async def get_user(user_id: int) -> dict | None:
+async def get_user(user_id: int) -> Optional[dict]:
     db = get_db()
     if db is None:
         return None
@@ -38,7 +39,7 @@ async def update_user(user_id: int, data: dict) -> None:
     await db.users.update_one({"_id": user_id}, {"$set": data}, upsert=True)
 
 
-async def get_all_users() -> list[dict]:
+async def get_all_users() -> List[dict]:
     db = get_db()
     if db is None:
         return []

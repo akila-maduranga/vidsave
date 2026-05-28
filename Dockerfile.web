@@ -44,13 +44,8 @@ RUN playwright install chromium || true
 # Copy project files
 COPY . .
 
-# Ensure youtube_api exists
-RUN if [ ! -d "youtube_api" ]; then \
-    git clone https://github.com/akilaramal69-beep/ytnew youtube_api; \
-    fi
-
 # Create downloads directory
-RUN mkdir -p DOWNLOADS youtube_api/downloads
+RUN mkdir -p DOWNLOADS
 
 # Set environment variables
 ENV FFMPEG_PATH=/usr/bin/ffmpeg

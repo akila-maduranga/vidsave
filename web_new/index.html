@@ -205,6 +205,13 @@
             transition: width 0.5s ease;
             width: 0%;
             border-radius: 8px;
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px rgba(255, 107, 107, 0.4); }
+            50% { box-shadow: 0 0 15px rgba(255, 107, 107, 0.8); }
+            100% { box-shadow: 0 0 5px rgba(255, 107, 107, 0.4); }
         }
 
         .progress-info {
@@ -215,8 +222,23 @@
             font-weight: 500;
         }
 
+        /* Define common wrapper class for fade-in transition */
+        .section-wrap {
+            transition: opacity 0.4s ease, transform 0.4s ease, max-height 0.4s ease;
+            opacity: 1;
+            transform: translateY(0);
+            max-height: 2000px; /* High enough to fit content */
+            overflow: hidden;
+        }
+
         .hidden {
-            display: none !important;
+            opacity: 0 !important;
+            transform: translateY(10px) !important;
+            max-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            pointer-events: none !important;
         }
 
         .error {
@@ -348,21 +370,21 @@
 
         <div class="card">
             <div class="input-group">
-                <input type="text" id="urlInput" placeholder="Paste URL here (YouTube, Instagram, TikTok, Twitter, etc.)">
+                <input type="text" id="urlInput" placeholder="Paste URL here (Instagram, TikTok, Twitter, Facebook, etc.)">
                 <button id="checkBtn" class="btn-primary">
-                    <span id="btnText">Check URL</span>
+                    <span id="btnText">Analyze URL</span>
                 </button>
             </div>
 
             <div id="error" class="error hidden"></div>
             <div id="success" class="success hidden"></div>
 
-            <div id="qualitySection" class="hidden">
+            <div id="qualitySection" class="section-wrap hidden">
                 <h3 style="margin-bottom: 15px;">Select Quality</h3>
                 <div class="quality-grid" id="qualityGrid"></div>
             </div>
 
-            <div id="modeSection" class="hidden">
+            <div id="modeSection" class="section-wrap hidden">
                 <h3 style="margin-bottom: 15px;">Download Mode</h3>
                 <div class="mode-section">
                     <button class="mode-btn selected" onclick="selectMode('direct')">Direct Download</button>
@@ -370,19 +392,19 @@
                 </div>
             </div>
 
-            <div id="filenameSection" class="hidden">
+            <div id="filenameSection" class="section-wrap hidden">
                 <div class="input-group">
                     <input type="text" id="filenameInput" placeholder="Custom filename (optional)">
                 </div>
             </div>
 
-            <div id="downloadSection" class="hidden">
+            <div id="downloadSection" class="section-wrap hidden">
                 <button class="btn-primary" style="width: 100%;" onclick="startDownload()">
-                    <span id="downloadBtnText">Start Download</span>
+                    <span id="downloadBtnText">Download Now</span>
                 </button>
             </div>
 
-            <div id="progressSection" class="progress-section hidden">
+            <div id="progressSection" class="progress-section section-wrap hidden">
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
@@ -395,13 +417,12 @@
                 </div>
             </div>
 
-            <div id="downloadCompleteSection" class="hidden">
+            <div id="downloadCompleteSection" class="section-wrap hidden">
                 <a id="downloadLink" class="download-link" href="#" download>Download File</a>
             </div>
         </div>
 
         <div class="supported-sites">
-            <span class="site-tag">YouTube</span>
             <span class="site-tag">Instagram</span>
             <span class="site-tag">TikTok</span>
             <span class="site-tag">Twitter/X</span>

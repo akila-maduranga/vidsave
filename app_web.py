@@ -95,15 +95,16 @@ def api_formats():
     if not url:
         return {"error": "URL is required"}, 400
 
-    try:
-        from plugins.helper.upload import fetch_ytdlp_formats
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        res = loop.run_until_complete(fetch_ytdlp_formats(url))
-        loop.close()
-        return jsonify(res), 200
-    except Exception as e:
-        return {"error": str(e)}, 500
+    # Return fixed quality options (no YouTube API needed)
+    return jsonify({
+        "formats": [
+            {"format_id": "best", "label": "Best Quality"},
+            {"format_id": "1080p", "label": "1080p HD"},
+            {"format_id": "720p", "label": "720p HD"},
+            {"format_id": "480p", "label": "480p SD"},
+            {"format_id": "360p", "label": "360p"}
+        ]
+    }), 200
 
 @app.route("/api/web-download", methods=["POST"])
 def api_web_download():
@@ -389,5 +390,26 @@ if __name__ == "__main__":
     # Mark app as ready
     app.is_ready = True
     
-    # Run Flask app
-    app.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get('PORT', 8080))
+    workers = int(os.environ.get('WEB_WORKERS', 4))  # 4 workers on 12GB VPS
+
+    try:
+        # Use gunicorn in production for multi-worker performance
+        from gunicorn.app.wsgiapp import WSGIApplication
+        import sys
+        sys.argv = [
+            'gunicorn',
+            '--bind', f'0.0.0.0:{port}',
+            '--workers', str(workers),
+            '--threads', '4',
+            '--worker-class', 'gthread',
+            '--timeout', '600',
+            '--keep-alive', '5',
+            '--max-requests', '1000',
+            '--max-requests-jitter', '100',
+            'app_web:app'
+        ]
+        WSGIApplication().run()
+    except ImportError:
+        # Fallback to Flask dev server if gunicorn not available
+        app.run(host="0.0.0.0", port=port, threaded=True)

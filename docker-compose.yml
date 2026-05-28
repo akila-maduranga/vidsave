@@ -9,7 +9,6 @@ services:
     environment:
       - PORT=8080
       - FFMPEG_PATH=/usr/bin/ffmpeg
-      - YOUTUBE_API_URL=http://youtube-api:8001
       - DATABASE_URL=mongodb://mongodb:27017/cloud_downloader
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
@@ -18,22 +17,6 @@ services:
       - ./DOWNLOADS:/app/DOWNLOADS
     depends_on:
       - mongodb
-      - youtube-api
-    networks:
-      - app-network
-
-  # YouTube API service
-  youtube-api:
-    build:
-      context: ./youtube_api
-      dockerfile: Dockerfile
-    container_name: cloud-downloader-youtube
-    restart: unless-stopped
-    environment:
-      - PORT=8001
-      - YTDLP_PATH=yt-dlp
-    volumes:
-      - ./youtube_api/downloads:/app/downloads
     networks:
       - app-network
 

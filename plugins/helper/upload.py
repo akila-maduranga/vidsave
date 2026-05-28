@@ -1,5 +1,6 @@
 import asyncio
 import time
+from typing import Optional
 import os
 import json
 import mimetypes
@@ -283,7 +284,7 @@ def get_file_category(url: str, mime: str = None) -> str:
     return 'unknown'
 
 
-async def probe_content_type(url: str) -> str | None:
+async def probe_content_type(url: str) -> Optional[str]:
     """Probe URL to get Content-Type header."""
     session = await get_http_session()
     try:
@@ -302,7 +303,7 @@ def needs_ffmpeg_download(url: str, mime: str) -> bool:
     ext = os.path.splitext(urllib.parse.urlparse(url).path)[1].lower()
     return ext in STREAMING_EXTENSIONS or (mime or "").lower() in HLS_MIME_TYPES
 
-async def probe_file_size(url: str) -> int | None:
+async def probe_file_size(url: str) -> Optional[int]:
     """Aggressively probe for file size using HEAD and Range GET fallback."""
     session = await get_http_session()
     # 1. Try HEAD first
@@ -505,7 +506,7 @@ def is_youtube_url(url: str) -> bool:
         return False
 
 
-async def fetch_youtube_info(url: str) -> dict | None:
+async def fetch_youtube_info(url: str) -> Optional[dict]:
     """Fetch video info from the YouTube API."""
     if not Config.YOUTUBE_API_URL:
         return None
@@ -694,7 +695,7 @@ async def download_youtube(
         raise ValueError(f"YouTube download failed: {error_msg}")
 
 
-async def fetch_link_api(url: str) -> str | None:
+async def fetch_link_api(url: str) -> Optional[str]:
     """
     Call the link-api GET /grab endpoint to extract a direct download URL.
     Uses local extractor if LINK_API_URL is not set, otherwise uses external API.
@@ -795,7 +796,7 @@ async def _safe_edit(msg, text: str, reply_markup=None):
         Config.LOGGER.warning(f"Failed to edit message: {e}")
 
 
-async def external_extract_ytdlp(url: str) -> dict | None:
+async def external_extract_ytdlp(url: str) -> Optional[dict]:
     """
     Try local extractor first, then external API as fallback.
     """
@@ -836,7 +837,7 @@ async def external_extract_ytdlp(url: str) -> dict | None:
     return None
 
 
-async def fetch_ytdlp_title(url: str) -> str | None:
+async def fetch_ytdlp_title(url: str) -> Optional[str]:
     """
     Extract the video title from yt-dlp (no download).
     Returns a clean filename like 'My Video Title.mp4', or None on failure.
@@ -998,7 +999,7 @@ async def get_best_filename(url: str, default_name: str = "downloaded_file") -> 
     return await fetch_http_filename(url, default_name)
 
 
-async def get_po_token() -> dict | None:
+async def get_po_token() -> Optional[dict]:
     """Fetch a PO Token from the local server."""
     try:
         session = await get_http_session()
@@ -1452,14 +1453,13 @@ async def download_ytdlp(
         "noplaylist": True,
         "max_filesize": Config.MAX_FILE_SIZE,
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "concurrent_fragment_downloads": 10, # Reduced for improved stability on low-resource hosts
-        "hls_prefer_native": True,          # Native HLS allows better progress reporting
-        "cachedir": False,                   # Disable cache to avoid path/permission issues on Koyeb
-        "trim_file_name": 100,              # Prevent Errno 2 by ensuring total path length stays safe
+        "concurrent_fragment_downloads": 16,
+        "hls_prefer_native": True,
+        "cachedir": False,
+        "trim_file_name": 100,
         "retries": 15,
         "fragment_retries": 15,
-        "buffersize": 1048576,               # 1MB Buffer for speed
-        "impersonate": "chrome",
+        "buffersize": 16777216,              # 16MB buffer for max throughput on 12GB VPS
         "javascript_runtimes": ["deno"],
         "extractor_args": {
             "youtube": {
@@ -1798,7 +1798,7 @@ async def get_video_metadata(file_path: str) -> dict:
         return {"duration": 0, "width": 0, "height": 0}
 
 
-async def generate_video_thumbnail(file_path: str, chat_id: int, duration: int = 0) -> str | None:
+async def generate_video_thumbnail(file_path: str, chat_id: int, duration: int = 0) -> Optional[str]:
     """
     Extract a single frame from the video at 10% of its duration (or 1 s if unknown),
     scaled to max width 320 px, saved as JPEG.  Returns the path or None on failure.
@@ -2282,7 +2282,7 @@ async def upload_file(
     file_path: str,
     mime: str,
     caption: str,
-    thumb_file_id: str | None,
+    thumb_file_id: Optional[str],
     progress_msg,
     start_time_ref: list,
     user_id: int,              # Explicit user_id for WEBAPP_PROGRESS tracking

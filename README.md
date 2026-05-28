@@ -1,12 +1,12 @@
 # KeepThisClip
 
-A powerful web-based downloader that downloads files from URLs (up to 2GB) including Instagram, TikTok, Twitter/X, YouTube, and 700+ more platforms. Built with Flask, yt-dlp, and Playwright for media extraction.
+A powerful web-based downloader that downloads files from URLs (up to 2GB) including Instagram, TikTok, Twitter/X, Reddit, Facebook, Vimeo, and 700+ more platforms. Built with Flask, yt-dlp, and Playwright for media extraction.
 
 ## Features
 
 - 🌐 **Modern Web Interface** - Clean, responsive UI with glassmorphism design
-- 📥 **Multi-Platform Support** - YouTube, Instagram, TikTok, Twitter/X, Reddit, Facebook, Vimeo + 700+ more
-- 🎬 **Quality Selection** - Choose video quality before downloading
+- 📥 **Multi-Platform Support** - Instagram, TikTok, Twitter/X, Reddit, Facebook, Vimeo + 700+ more
+- 🎬 **Quality Selection** - Choose video quality (360p, 480p, 720p, 1080p, Best) before downloading
 - 🎵 **Audio Extraction** - Extract audio from videos (MP3)
 - ✏️ **Custom Filename** - Rename files before download
 - 🔒 **SSL/HTTPS** - Automatic SSL with Caddy and Let's Encrypt
@@ -29,9 +29,9 @@ A powerful web-based downloader that downloads files from URLs (up to 2GB) inclu
         │                  │                  │
         ▼                  ▼                  ▼
 ┌───────────────┐  ┌──────────────┐  ┌────────────────┐
-│ Flask App     │  │  YouTube API │  │  MongoDB       │
-│ (Web UI)      │  │  (yt-dlp)    │  │  (Database)    │
-│ Port 8080     │  │  Port 8001   │  │  Port 27017    │
+│ Flask App     │  │  yt-dlp      │  │  MongoDB       │
+│ (Web UI)      │  │  (Download)  │  │  (Database)    │
+│ Port 8080     │  │  (Built-in)  │  │  Port 27017    │
 └───────────────┘  └──────────────┘  └────────────────┘
 ```
 
@@ -113,7 +113,6 @@ docker-compose up -d
 | `DOMAIN` | Yes | Your domain name (e.g., keepthisclip.com) |
 | `DATABASE_URL` | No | MongoDB connection string (default: mongodb://mongodb:27017/keepthisclip) |
 | `FFMPEG_PATH` | No | Path to FFmpeg (default: /usr/bin/ffmpeg) |
-| `YOUTUBE_API_URL` | No | YouTube API URL (default: http://youtube-api:8001) |
 | `PORT` | No | Flask app port (default: 8080) |
 | `ADMIN_USERNAME` | No | Admin username (default: admin) |
 | `ADMIN_PASSWORD` | No | Admin password (default: admin123) |
@@ -124,11 +123,11 @@ docker-compose up -d
 ## Usage
 
 1. Open your browser and go to `https://keepthisclip.com`
-2. Paste a URL (YouTube, Instagram, TikTok, etc.)
-3. Click "Check URL" to see available qualities
-4. Select quality and download mode
+2. Paste a URL (Instagram, TikTok, Twitter, Facebook, etc.)
+3. Click "Analyze URL" to see available qualities
+4. Select quality (360p, 480p, 720p, 1080p, Best) and download mode
 5. Optionally enter a custom filename
-6. Click "Start Download"
+6. Click "Download Now"
 7. Wait for download to complete
 8. Click "Download File" to save to your device
 
@@ -325,7 +324,6 @@ Then open `http://localhost:8080` in your browser.
 ## Supported Platforms
 
 yt-dlp supports 1700+ sites including:
-- YouTube
 - Instagram
 - TikTok
 - Twitter/X
@@ -352,14 +350,13 @@ keepthisclip/
 ├── plugins/
 │   ├── config.py          # Configuration
 │   └── helper/
-│       ├── upload.py      # Download logic
+│       ├── upload.py      # Download logic (yt-dlp)
 │       ├── extractor.py   # Link extraction
 │       └── database.py    # MongoDB operations
-├── web_new/
-│   ├── index.html         # Main web UI
-│   ├── app.js            # Frontend JavaScript
-│   └── admin.html        # Admin panel
-└── youtube_api/           # YouTube downloader service
+└── web_new/
+    ├── index.html         # Main web UI
+    ├── app.js            # Frontend JavaScript
+    └── admin.html        # Admin panel
 ```
 
 ## License

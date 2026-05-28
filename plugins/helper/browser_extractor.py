@@ -1,5 +1,6 @@
 import asyncio
 import re
+from typing import Optional
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright, Request
 
@@ -30,7 +31,7 @@ IGNORE_PATTERNS = re.compile(
 MIN_CONTENT_LENGTH = 50_000
 
 
-def _guess_height_from_url(url: str) -> int | None:
+def _guess_height_from_url(url: str) -> Optional[int]:
     """Guess video height from URL patterns."""
     url_lower = url.lower()
     if "1080" in url_lower or "fhd" in url_lower or "fullhd" in url_lower:
@@ -334,7 +335,7 @@ async def intercept_browser(url: str, timeout_ms: int = 25000) -> list[dict]:
     return list(found.values())
 
 
-def _guess_height_from_url(url: str) -> int | None:
+def _guess_height_from_url(url: str) -> Optional[int]:
     """Guess video height from URL patterns."""
     url_lower = url.lower()
     if "1080" in url_lower or "fhd" in url_lower or "fullhd" in url_lower:
@@ -359,7 +360,7 @@ def _add_media_entry(
     content_length: int = 0,
     has_video: bool = True,
     has_audio: bool = True,
-    height: int | None = None,
+    height: Optional[int] = None,
     is_hls: bool = False,
     is_dash: bool = False,
 ):
