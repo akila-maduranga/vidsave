@@ -55,34 +55,51 @@ async function checkUrl() {
             return;
         }
 
-        // Show quality options directly without API call
-        displayFormats();
-        document.getElementById('modeSection').classList.remove('hidden');
-        document.getElementById('filenameSection').classList.remove('hidden');
-        document.getElementById('downloadSection').classList.remove('hidden');
-        showSuccess('URL validated successfully!');
+        // Call API to extract formats
+        const response = await fetch('/api/formats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            displayFormats(data.formats || []);
+            document.getElementById('modeSection').classList.remove('hidden');
+            document.getElementById('filenameSection').classList.remove('hidden');
+            document.getElementById('downloadSection').classList.remove('hidden');
+            showSuccess('URL analyzed successfully!');
+        } else {
+            showError(data.error || 'Failed to analyze URL');
+        }
     } catch (err) {
-        showError('Invalid URL format');
+        showError('Connection error');
     } finally {
         btn.disabled = false;
         btnText.textContent = 'Analyze URL';
     }
 }
 
-function displayFormats() {
+function displayFormats(formats) {
     const grid = document.getElementById('qualityGrid');
     grid.innerHTML = '';
+    
+    if (formats.length === 0) {
+        grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: rgba(255,255,255,0.6);">No formats available, will use direct download</p>';
+        return;
+    }
 
-    QUALITY_OPTIONS.forEach((quality, index) => {
+    formats.forEach((format, index) => {
         const btn = document.createElement('button');
         btn.className = 'quality-btn';
-        btn.textContent = quality.label;
-        btn.onclick = () => selectFormat(quality.id, btn);
+        btn.textContent = format.label || format.format_id;
+        btn.onclick = () => selectFormat(format.format_id, btn);
         grid.appendChild(btn);
         
         // Auto-select the first format
         if (index === 0) {
-            selectFormat(quality.id, btn);
+            selectFormat(format.format_id, btn);
         }
     });
 

@@ -45,6 +45,9 @@ SITE_CONFIG = {
     'download_timeout': 300
 }
 
+# Mark app as ready immediately (for gunicorn workers)
+app.is_ready = True
+
 async def prune_progress_task():
     """Background task to keep memory low by pruning old progress data."""
     while True:
@@ -95,16 +98,15 @@ def api_formats():
     if not url:
         return {"error": "URL is required"}, 400
 
-    # Return fixed quality options (no YouTube API needed)
-    return jsonify({
-        "formats": [
-            {"format_id": "best", "label": "Best Quality"},
-            {"format_id": "1080p", "label": "1080p HD"},
-            {"format_id": "720p", "label": "720p HD"},
-            {"format_id": "480p", "label": "480p SD"},
-            {"format_id": "360p", "label": "360p"}
-        ]
-    }), 200
+    try:
+        from plugins.helper.upload import fetch_ytdlp_formats
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        res = loop.run_until_complete(fetch_ytdlp_formats(url))
+        loop.close()
+        return jsonify(res), 200
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 @app.route("/api/web-download", methods=["POST"])
 def api_web_download():
