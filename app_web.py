@@ -96,7 +96,7 @@ def api_formats():
         return {"error": "URL is required"}, 400
 
     try:
-        from plugins.helper.extractor import fetch_ytdlp_formats
+        from plugins.helper.upload import fetch_ytdlp_formats
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         res = loop.run_until_complete(fetch_ytdlp_formats(url))
@@ -364,7 +364,7 @@ def extract():
         return {"error": "URL is required"}, 400
 
     try:
-        from plugins.helper.extractor import fetch_ytdlp_formats
+        from plugins.helper.upload import fetch_ytdlp_formats
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         res = loop.run_until_complete(fetch_ytdlp_formats(url))
