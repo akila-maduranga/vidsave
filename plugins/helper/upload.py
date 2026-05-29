@@ -113,13 +113,16 @@ async def download_to_file(download_id: str, url: str, format_id: str = None, mo
             ydl.download([url])
         
         # Find the actual downloaded file (yt-dlp may add extension)
+        found = False
         for ext in ['.mp4', '.webm', '.mkv', '.mp3', '.m4a']:
             if os.path.exists(output_path.rsplit('.', 1)[0] + ext):
                 output_path = output_path.rsplit('.', 1)[0] + ext
+                found = True
                 break
-        elif os.path.exists(output_path):
+        
+        if not found and os.path.exists(output_path):
             pass  # File exists with original path
-        else:
+        elif not found:
             # Try to find any file with the download_id prefix
             import glob
             matching = glob.glob(os.path.join(Config.DOWNLOAD_LOCATION, f"{download_id}_*"))
