@@ -74,6 +74,8 @@ async def download_to_file(download_id: str, url: str, format_id: str = None, mo
                 'outtmpl': output_path,
                 'quiet': True,
                 'no_warnings': True,
+                'writethumbnail': False,
+                'writeinfojson': False,
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
@@ -82,12 +84,20 @@ async def download_to_file(download_id: str, url: str, format_id: str = None, mo
             }
         else:
             # Video download with quality selection
-            ydl_format = quality_map.get(format_id, 'bestvideo+bestaudio/best')
+            # Use the format_id directly if it's from yt-dlp, otherwise use quality map
+            if format_id in quality_map:
+                ydl_format = quality_map[format_id]
+            else:
+                # Use the actual yt-dlp format_id
+                ydl_format = format_id + '+bestaudio/best' if '+' not in format_id else format_id
+            
             ydl_opts = {
                 'format': ydl_format,
                 'outtmpl': output_path,
                 'quiet': True,
                 'no_warnings': True,
+                'writethumbnail': False,
+                'writeinfojson': False,
                 'merge_output_format': 'mp4',
                 'postprocessors': [{
                     'key': 'FFmpegVideoConvertor',

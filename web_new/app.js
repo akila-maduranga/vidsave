@@ -93,7 +93,20 @@ function displayFormats(formats) {
     formats.forEach((format, index) => {
         const btn = document.createElement('button');
         btn.className = 'quality-btn';
-        btn.textContent = format.label || format.format_id;
+        
+        // Create label with format info
+        const label = document.createElement('span');
+        label.textContent = format.label || format.format_id;
+        btn.appendChild(label);
+        
+        // Add height badge if available
+        if (format.height && format.height !== 9999) {
+            const badge = document.createElement('span');
+            badge.style.cssText = 'display: block; font-size: 0.75rem; opacity: 0.7; margin-top: 4px;';
+            badge.textContent = `${format.height}p`;
+            btn.appendChild(badge);
+        }
+        
         btn.onclick = () => selectFormat(format.format_id, btn);
         grid.appendChild(btn);
         
@@ -129,6 +142,15 @@ async function startDownload() {
 
     hideMessages();
 
+    // Reset UI state - hide all previous download-related sections
+    document.getElementById('progressSection').classList.add('hidden');
+    document.getElementById('downloadCompleteSection').classList.add('hidden');
+    document.getElementById('qualitySection').classList.add('hidden');
+    document.getElementById('modeSection').classList.add('hidden');
+    document.getElementById('filenameSection').classList.add('hidden');
+
+    // Show download section with spinner
+    document.getElementById('downloadSection').classList.remove('hidden');
     const btn = document.getElementById('downloadSection').querySelector('button');
     const btnText = document.getElementById('downloadBtnText');
     btn.disabled = true;
@@ -152,9 +174,6 @@ async function startDownload() {
             downloadId = data.download_id;
             document.getElementById('progressSection').classList.remove('hidden');
             document.getElementById('downloadSection').classList.add('hidden');
-            document.getElementById('qualitySection').classList.add('hidden');
-            document.getElementById('modeSection').classList.add('hidden');
-            document.getElementById('filenameSection').classList.add('hidden');
             startProgressPolling();
         } else {
             showError(data.error || 'Failed to start download');
@@ -223,6 +242,22 @@ function showDownloadLink() {
     
     const link = document.getElementById('downloadLink');
     link.href = `/api/download-file/${downloadId}`;
+    
+    // Fetch file info from progress API
+    fetch(`/api/progress/${downloadId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.filename) {
+                link.textContent = `Download ${data.filename}`;
+                if (data.filesize_human) {
+                    link.textContent += ` (${data.filesize_human})`;
+                }
+            }
+        })
+        .catch(() => {
+            link.textContent = 'Download File';
+        });
+    
     showSuccess('Download complete!');
 }
 

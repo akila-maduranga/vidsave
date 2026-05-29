@@ -10,6 +10,16 @@ from flask import Flask, request, jsonify, send_from_directory, send_file
 from plugins.config import Config
 import time
 
+def humanbytes(size):
+    """Convert bytes to human readable format."""
+    if not size:
+        return "0B"
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024.0:
+            return f"{size:.2f}{unit}"
+        size /= 1024.0
+    return f"{size:.2f}PB"
+
 # Serve the new web frontend
 app = Flask(__name__, static_folder="web_new")
 
@@ -98,16 +108,76 @@ def api_formats():
     if not url:
         return {"error": "URL is required"}, 400
 
-    # Return fixed quality options immediately (no slow extraction)
-    return jsonify({
-        "formats": [
-            {"format_id": "best", "label": "Best Quality"},
-            {"format_id": "1080p", "label": "1080p HD"},
-            {"format_id": "720p", "label": "720p HD"},
-            {"format_id": "480p", "label": "480p SD"},
-            {"format_id": "360p", "label": "360p"}
-        ]
-    }), 200
+    try:
+        from plugins.helper.upload import fetch_ytdlp_formats
+        import signal
+        
+        # Create a timeout wrapper
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Format extraction timeout")
+        
+        # Set timeout to 15 seconds
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(15)
+        
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            res = loop.run_until_complete(fetch_ytdlp_formats(url))
+            loop.close()
+        finally:
+            signal.alarm(0)  # Cancel alarm
+        
+        # Filter to only show downloadable video formats
+        if 'formats' in res:
+            filtered_formats = []
+            seen_heights = set()
+            
+            for fmt in res['formats']:
+                # Only include video formats with height
+                if fmt.get('vcodec') != 'none' and fmt.get('height'):
+                    height = fmt['height']
+                    # Only show one format per height (best quality for that height)
+                    if height not in seen_heights:
+                        seen_heights.add(height)
+                        label = f"{height}p"
+                        if fmt.get('fps'):
+                            label += f" ({fmt['fps']}fps)"
+                        if fmt.get('filesize'):
+                            size_mb = fmt['filesize'] / (1024 * 1024)
+                            label += f" - {size_mb:.1f}MB"
+                        filtered_formats.append({
+                            "format_id": fmt.get('format_id', f"{height}p"),
+                            "label": label,
+                            "height": height
+                        })
+            
+            # Sort by height descending
+            filtered_formats.sort(key=lambda x: x['height'], reverse=True)
+            
+            # Add "Best Quality" option at the top
+            filtered_formats.insert(0, {
+                "format_id": "best",
+                "label": "Best Quality",
+                "height": 9999
+            })
+            
+            res['formats'] = filtered_formats
+        
+        return jsonify(res), 200
+    except TimeoutError:
+        # Return fallback options on timeout
+        return jsonify({
+            "formats": [
+                {"format_id": "best", "label": "Best Quality"},
+                {"format_id": "1080p", "label": "1080p HD"},
+                {"format_id": "720p", "label": "720p HD"},
+                {"format_id": "480p", "label": "480p SD"},
+                {"format_id": "360p", "label": "360p"}
+            ]
+        }), 200
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 @app.route("/api/web-download", methods=["POST"])
 def api_web_download():
@@ -161,12 +231,22 @@ def api_progress(download_id):
     if not progress:
         return {"error": "Download not found"}, 404
 
-    return jsonify({
+    response_data = {
         "status": progress.get("status"),
         "percentage": progress.get("percentage", 0),
         "action": progress.get("action", ""),
         "speed": progress.get("speed", "-- MB/s")
-    }), 200
+    }
+
+    # Add file info when download is complete
+    if progress.get("status") == "complete":
+        filepath = progress.get("filepath")
+        if filepath and os.path.exists(filepath):
+            response_data["filename"] = progress.get("filename", os.path.basename(filepath))
+            response_data["filesize"] = os.path.getsize(filepath)
+            response_data["filesize_human"] = humanbytes(os.path.getsize(filepath))
+
+    return jsonify(response_data), 200
 
 @app.route("/api/download-file/<download_id>")
 def api_download_file(download_id):
