@@ -110,23 +110,26 @@ def api_formats():
 
     try:
         from plugins.helper.upload import fetch_ytdlp_formats
-        import signal
+        import concurrent.futures
         
-        # Create a timeout wrapper
-        def timeout_handler(signum, frame):
-            raise TimeoutError("Format extraction timeout")
-        
-        # Set timeout to 15 seconds
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(15)
-        
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            res = loop.run_until_complete(fetch_ytdlp_formats(url))
-            loop.close()
-        finally:
-            signal.alarm(0)  # Cancel alarm
+        # Use ThreadPoolExecutor for timeout
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(
+                lambda: asyncio.run(fetch_ytdlp_formats(url))
+            )
+            try:
+                res = future.result(timeout=15)
+            except concurrent.futures.TimeoutError:
+                # Return fallback options on timeout
+                return jsonify({
+                    "formats": [
+                        {"format_id": "best", "label": "Best Quality"},
+                        {"format_id": "1080p", "label": "1080p HD"},
+                        {"format_id": "720p", "label": "720p HD"},
+                        {"format_id": "480p", "label": "480p SD"},
+                        {"format_id": "360p", "label": "360p"}
+                    ]
+                }), 200
         
         # Filter to only show downloadable video formats
         if 'formats' in res:
@@ -165,17 +168,6 @@ def api_formats():
             res['formats'] = filtered_formats
         
         return jsonify(res), 200
-    except TimeoutError:
-        # Return fallback options on timeout
-        return jsonify({
-            "formats": [
-                {"format_id": "best", "label": "Best Quality"},
-                {"format_id": "1080p", "label": "1080p HD"},
-                {"format_id": "720p", "label": "720p HD"},
-                {"format_id": "480p", "label": "480p SD"},
-                {"format_id": "360p", "label": "360p"}
-            ]
-        }), 200
     except Exception as e:
         return {"error": str(e)}, 500
 
